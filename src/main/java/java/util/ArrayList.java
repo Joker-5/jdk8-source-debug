@@ -104,11 +104,13 @@ import sun.misc.SharedSecrets;
  * @since   1.2
  */
 
+// 概述：
+// ArrayList底层是数组，在添加大量元素前，应用程序可以使用ensureCapacity来增加ArrayList的存储容量，这样可以减少递增式再分配的次数，
+// 从而带来一定程度上的性能提升
 public class ArrayList<E> extends AbstractList<E>
         implements List<E>, RandomAccess, Cloneable, java.io.Serializable
 {
     private static final long serialVersionUID = 8683452581122892189L;
-
     /**
      * Default initial capacity.
      */
