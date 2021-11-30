@@ -128,6 +128,7 @@ public class LinkedList<E>
     /**
      * Links e as first element.
      */
+    // 头插法，很无脑就不分析了
     private void linkFirst(E e) {
         final Node<E> f = first;
         final Node<E> newNode = new Node<>(null, e, f);
@@ -167,6 +168,7 @@ public class LinkedList<E>
         final Node<E> pred = succ.prev;
         final Node<E> newNode = new Node<>(pred, e, succ);
         succ.prev = newNode;
+        // 如果前驱为空说明插入的位置为头，直接将新节点赋给头指针即可
         if (pred == null)
             first = newNode;
         else
@@ -236,6 +238,7 @@ public class LinkedList<E>
             x.next = null;
         }
 
+        // 将item置为null，帮助gc更好的回收
         x.item = null;
         size--;
         modCount++;
@@ -416,11 +419,14 @@ public class LinkedList<E>
     public boolean addAll(int index, Collection<? extends E> c) {
         checkPositionIndex(index);
 
+        // 传统异能将collection转换为Object数组
         Object[] a = c.toArray();
         int numNew = a.length;
+        // 长度为0说明集合为空，直接返回，返回false表示链表并没有发生修改
         if (numNew == 0)
             return false;
 
+        // 获取idx位置的前驱和后继节点（就是当前idx的节点）
         Node<E> pred, succ;
         if (index == size) {
             succ = null;
@@ -430,6 +436,7 @@ public class LinkedList<E>
             pred = succ.prev;
         }
 
+        // 以此将数组中的元素转为Node加到前驱的后面
         for (Object o : a) {
             @SuppressWarnings("unchecked") E e = (E) o;
             Node<E> newNode = new Node<>(pred, e, null);
@@ -449,6 +456,7 @@ public class LinkedList<E>
 
         size += numNew;
         modCount++;
+        // 返回true表示链表已经发生了修改
         return true;
     }
 
@@ -515,11 +523,14 @@ public class LinkedList<E>
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
     public void add(int index, E element) {
+        // 先校验插入idx是否非法
+        // idx < 0 or idx > size即非法
         checkPositionIndex(index);
 
+        // idx为size直接尾插即可
         if (index == size)
             linkLast(element);
-        else
+        else // 否则插在当前idx元素的前面
             linkBefore(element, node(index));
     }
 
@@ -533,6 +544,7 @@ public class LinkedList<E>
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
     public E remove(int index) {
+        // 可以看得出来形参中涉及idx的方法必然会有检查idx是否合法这一步
         checkElementIndex(index);
         return unlink(node(index));
     }
@@ -577,6 +589,7 @@ public class LinkedList<E>
     Node<E> node(int index) {
         // assert isElementIndex(index);
 
+        // 优化的技巧，如果idx在前半部分就正序遍历，否则就逆序遍历
         if (index < (size >> 1)) {
             Node<E> x = first;
             for (int i = 0; i < index; i++)
