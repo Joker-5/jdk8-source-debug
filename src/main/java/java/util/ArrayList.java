@@ -218,7 +218,12 @@ public class ArrayList<E> extends AbstractList<E>
      *
      * @param   minCapacity   the desired minimum capacity
      */
+    // 和ensureInternalCapatity以及ensureExplicitCapacity不同，这个方法在源码中就没被调过，显然这个方法是给用户用的
+    // 最好在大量add元素之前根据预估add的量调一下这个方法来减少list grow扩容的次数以此提升性能
     public void ensureCapacity(int minCapacity) {
+        // 如果当前list非默认list且传入参数合法的话就正常扩容，
+        // 但如果此时还是默认list且你指定的扩容大小小于默认扩容大小（也就是10），那你这次就别扩容了，一点必要也没有
+        // 这里也是个小优化点，可以学一下
         int minExpand = (elementData != DEFAULTCAPACITY_EMPTY_ELEMENTDATA)
             // any size if not default element table
             ? 0

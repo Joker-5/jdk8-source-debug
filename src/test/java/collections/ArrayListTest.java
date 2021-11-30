@@ -10,6 +10,7 @@ public class ArrayListTest {
         list.add(1, 11);
         Object[] array = list.toArray();
         Arrays.stream(array).forEach(e -> System.out.println(e));
+        list.ensureCapacity(80);
         System.out.println(list.size());
     }
 }
