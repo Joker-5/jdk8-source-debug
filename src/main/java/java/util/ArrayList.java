@@ -107,6 +107,9 @@ import sun.misc.SharedSecrets;
 // 概述：
 // ArrayList底层是数组，在添加大量元素前，应用程序可以使用ensureCapacity来增加ArrayList的存储容量，这样可以减少递增式再分配的次数，
 // 从而带来一定程度上的性能提升
+// 实现RandomAccess接口表示ArrayList支持快速随机访问
+// 实现java.io.Serializable表示ArrayList支持序列化功能
+// 实现Cloneable接口表示ArrayList支持clone
 public class ArrayList<E> extends AbstractList<E>
         implements List<E>, RandomAccess, Cloneable, java.io.Serializable
 {
@@ -136,6 +139,8 @@ public class ArrayList<E> extends AbstractList<E>
      * empty ArrayList with elementData == DEFAULTCAPACITY_EMPTY_ELEMENTDATA
      * will be expanded to DEFAULT_CAPACITY when the first element is added.
      */
+    // elementData的length是ArrayList真正的大小，扩容时也是根据其来计算的，
+    // 其是ArrayList底层真正存储元素的数据结构
     transient Object[] elementData; // non-private to simplify nested class access
 
     /**
@@ -143,6 +148,7 @@ public class ArrayList<E> extends AbstractList<E>
      *
      * @serial
      */
+    // size指用户实际使用的ArrayList的大小，和elementData的大小是有区别的
     private int size;
 
     /**
@@ -152,7 +158,8 @@ public class ArrayList<E> extends AbstractList<E>
      * @throws IllegalArgumentException if the specified initial capacity
      *         is negative
      */
-    // 用户自己指定容量来创建ArrayList
+    // 用户自己指定容量来创建ArrayList，在平常使用时如果能够预估add的元素数量的话最好就用这个构造方法，
+    // 以避免ArrayList频繁扩容造成的性能损耗
     public ArrayList(int initialCapacity) {
         if (initialCapacity > 0) {
             this.elementData = new Object[initialCapacity];
@@ -185,8 +192,10 @@ public class ArrayList<E> extends AbstractList<E>
     // 构造包含指定collection元素的ArrayList，元素顺序和collection 迭代器的顺序一致
     // 若集合为null直接抛空指针
     public ArrayList(Collection<? extends E> c) {
+        // 先把collection转为object数组
         Object[] a = c.toArray();
         if ((size = a.length) != 0) {
+            // 如果collection本来就是ArrayList的话那么直接把转换后的数组的引用赋给ArrayList的底层存储数组即可
             if (c.getClass() == ArrayList.class) {
                 elementData = a;
             } else {
