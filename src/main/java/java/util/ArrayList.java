@@ -506,11 +506,16 @@ public class ArrayList<E> extends AbstractList<E>
      * @throws IndexOutOfBoundsException {@inheritDoc}
      */
     public void add(int index, E element) {
+        // 在add之前先对用户指定的下标进行越界检查，有问题直接抛越界异常
         rangeCheckForAdd(index);
 
+        // 添加之前的传统异能：扩容检查
         ensureCapacityInternal(size + 1);  // Increments modCount!!
+        // 插入元素实际上是调用了System.arraycopy方法来将指定idx及其后面的元素向右侧copy了一位，
+        // 因此还是比较消耗性能的
         System.arraycopy(elementData, index, elementData, index + 1,
                          size - index);
+        // 在移动完之后再将指定元素插入到指定的位置
         elementData[index] = element;
         size++;
     }
