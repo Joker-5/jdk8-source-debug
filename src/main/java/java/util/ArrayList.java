@@ -120,6 +120,7 @@ public class ArrayList<E> extends AbstractList<E>
     /**
      * Shared empty array instance used for empty instances.
      */
+    // 空数组，用于创建空实例
     private static final Object[] EMPTY_ELEMENTDATA = {};
 
     /**
