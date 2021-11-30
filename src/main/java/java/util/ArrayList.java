@@ -232,7 +232,10 @@ public class ArrayList<E> extends AbstractList<E>
     }
 
     private static int calculateCapacity(Object[] elementData, int minCapacity) {
+        // 如果是默认容量的话（即用空参构造器）在会走下面的max逻辑
+        // 当用空参构造器add第一个元素时会触发下面的逻辑，将list容量指定为10
         if (elementData == DEFAULTCAPACITY_EMPTY_ELEMENTDATA) {
+            // 获取默认参数和传入参数的较大值
             return Math.max(DEFAULT_CAPACITY, minCapacity);
         }
         return minCapacity;
@@ -242,11 +245,14 @@ public class ArrayList<E> extends AbstractList<E>
         ensureExplicitCapacity(calculateCapacity(elementData, minCapacity));
     }
 
+    // 判断是否需要进行数组扩容
     private void ensureExplicitCapacity(int minCapacity) {
         modCount++;
 
         // overflow-conscious code
+        // 如果上一步计算获取的minCapacity已经大于数组的长度了那么就需要对数组进行扩容了
         if (minCapacity - elementData.length > 0)
+            // 用默认构造器add第一个元素时必然会执行下面的方法
             grow(minCapacity);
     }
 
@@ -256,6 +262,7 @@ public class ArrayList<E> extends AbstractList<E>
      * Attempts to allocate larger arrays may result in
      * OutOfMemoryError: Requested array size exceeds VM limit
      */
+    // ArrayList分配数组大小的上限，超了可能OOM，因为有些VM可能会在list头存一些额外信息
     private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
 
     /**
@@ -265,18 +272,30 @@ public class ArrayList<E> extends AbstractList<E>
      * @param minCapacity the desired minimum capacity
      */
     private void grow(int minCapacity) {
+        // 下面这个注释的意思是后面的代码都是考虑了溢出情况的->像越界变为负数
         // overflow-conscious code
+        // 老容量
         int oldCapacity = elementData.length;
+        // 新容量，扩容策略为1.5倍左右，扩容并不是精确的1.5倍，
+        // 因为如果是odd的话 / 2 就是近似1.5倍了，even是精确1.5倍，
+        // 不过这点并没有什么关系，影响不大
+        // 用位运算效率高一些
         int newCapacity = oldCapacity + (oldCapacity >> 1);
+        // 如果扩容后的1.5倍容量还是小于最小需要的容量，则需要将容量扩为最小需要容量
         if (newCapacity - minCapacity < 0)
             newCapacity = minCapacity;
+        // 如果扩容后的容量超了最大数组长度上限的话，执行hugeCapacity方法来比较minCapacity和MAX_ARRAY_SIZE的大小，
+        // 如果minCapacity比MAX_ARRAY_SIZE还大的话就用minCapacity作为最终容量，否则就用MAX_ARRAY_SIZE
         if (newCapacity - MAX_ARRAY_SIZE > 0)
             newCapacity = hugeCapacity(minCapacity);
         // minCapacity is usually close to size, so this is a win:
+        // Arrays.copyOf主要用于对数组扩容，其底层调用的是System.arraycopy方法，
+        // 该方法会创建一个新数组，因此扩容对性能消耗很大
         elementData = Arrays.copyOf(elementData, newCapacity);
     }
 
     private static int hugeCapacity(int minCapacity) {
+        // 溢出的情况，直接OOM
         if (minCapacity < 0) // overflow
             throw new OutOfMemoryError();
         return (minCapacity > MAX_ARRAY_SIZE) ?
@@ -470,7 +489,9 @@ public class ArrayList<E> extends AbstractList<E>
      * @return <tt>true</tt> (as specified by {@link Collection#add})
      */
     public boolean add(E e) {
+        // 注意，在添加元素之前确保至少要有一个可用空间
         ensureCapacityInternal(size + 1);  // Increments modCount!!
+        // 本质上ArrayList就是个数组，添加元素就是给数组tail位赋值
         elementData[size++] = e;
         return true;
     }
