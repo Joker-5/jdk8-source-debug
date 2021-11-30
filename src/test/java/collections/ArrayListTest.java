@@ -15,5 +15,12 @@ public class ArrayListTest {
         Object[] array = list.toArray();
         // 5.ensureCapacity方法分析
         list.ensureCapacity(80);
+        // 6.fail-fast机制分析
+        for (Integer e : list) {
+            // 不会抛异常
+            list.remove(e);
+            // 会抛异常
+            list.remove(2);
+        }
     }
 }
