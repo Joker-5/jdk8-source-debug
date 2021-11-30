@@ -80,10 +80,14 @@ import java.util.function.Consumer;
  * @param <E> the type of elements held in this collection
  */
 
+// 概述：
+// LinkedList继承了AbstractSequentialList，这玩意是AbstractList的子类，不支持高速随机访问元素，
+// 而且其实现了Deque接口，即可以当Stack也可以当Queue来用
 public class LinkedList<E>
     extends AbstractSequentialList<E>
     implements List<E>, Deque<E>, Cloneable, java.io.Serializable
 {
+    // 链表节点数量，避免每次需要LinkedList长度时都需要O(n)遍历一遍获取
     transient int size = 0;
 
     /**
@@ -91,6 +95,7 @@ public class LinkedList<E>
      * Invariant: (first == null && last == null) ||
      *            (first.prev == null && first.item != null)
      */
+    // 链表头指针
     transient Node<E> first;
 
     /**
@@ -98,6 +103,7 @@ public class LinkedList<E>
      * Invariant: (first == null && last == null) ||
      *            (last.next == null && last.item != null)
      */
+    // 链表尾指针
     transient Node<E> last;
 
     /**
@@ -137,13 +143,17 @@ public class LinkedList<E>
     /**
      * Links e as last element.
      */
+    // 尾插法，非常简单，连扩容也无需考虑
     void linkLast(E e) {
+        // 记录原tail节点
         final Node<E> l = last;
+        // 比较耗时的地方就是下面的实例化
         final Node<E> newNode = new Node<>(l, e, null);
         last = newNode;
+        // 如果原tail为空说明原first也肯定为空（因为插入第一个元素时头尾指针都会指向该元素）
         if (l == null)
             first = newNode;
-        else
+        else // 正常情况
             l.next = newNode;
         size++;
         modCount++;
@@ -334,6 +344,7 @@ public class LinkedList<E>
      * @param e element to be appended to this list
      * @return {@code true} (as specified by {@link Collection#add})
      */
+    // 尾插法添加元素
     public boolean add(E e) {
         linkLast(e);
         return true;
