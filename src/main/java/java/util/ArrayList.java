@@ -114,6 +114,7 @@ public class ArrayList<E> extends AbstractList<E>
     /**
      * Default initial capacity.
      */
+    // 默认初始容量大小
     private static final int DEFAULT_CAPACITY = 10;
 
     /**
@@ -150,12 +151,14 @@ public class ArrayList<E> extends AbstractList<E>
      * @throws IllegalArgumentException if the specified initial capacity
      *         is negative
      */
+    // 用户自己指定容量来创建ArrayList
     public ArrayList(int initialCapacity) {
         if (initialCapacity > 0) {
             this.elementData = new Object[initialCapacity];
         } else if (initialCapacity == 0) {
             this.elementData = EMPTY_ELEMENTDATA;
         } else {
+            // 若用户容量指定为负则直接抛异常
             throw new IllegalArgumentException("Illegal Capacity: "+
                                                initialCapacity);
         }
@@ -164,6 +167,8 @@ public class ArrayList<E> extends AbstractList<E>
     /**
      * Constructs an empty list with an initial capacity of ten.
      */
+    // 默认构造器，实际上构造的是一个空列表，只有在add第一个元素时其才会真正为ArrayList分配内存（默认大小为10）
+    // 可以看出ArrayList创建时采用的是懒汉式加载模式
     public ArrayList() {
         this.elementData = DEFAULTCAPACITY_EMPTY_ELEMENTDATA;
     }
@@ -176,6 +181,8 @@ public class ArrayList<E> extends AbstractList<E>
      * @param c the collection whose elements are to be placed into this list
      * @throws NullPointerException if the specified collection is null
      */
+    // 构造包含指定collection元素的ArrayList，元素顺序和collection 迭代器的顺序一致
+    // 若集合为null直接抛空指针
     public ArrayList(Collection<? extends E> c) {
         Object[] a = c.toArray();
         if ((size = a.length) != 0) {
