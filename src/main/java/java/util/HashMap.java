@@ -235,6 +235,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     /**
      * The default initial capacity - MUST be a power of two.
      */
+    // 默认初始容量，also known as: 16
     static final int DEFAULT_INITIAL_CAPACITY = 1 << 4; // aka 16
 
     /**
@@ -242,11 +243,13 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * by either of the constructors with arguments.
      * MUST be a power of two <= 1<<30.
      */
+    // 最大容量，必须是2的幂
     static final int MAXIMUM_CAPACITY = 1 << 30;
 
     /**
      * The load factor used when none specified in constructor.
      */
+    // 默认负载因子
     static final float DEFAULT_LOAD_FACTOR = 0.75f;
 
     /**
@@ -257,6 +260,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * tree removal about conversion back to plain bins upon
      * shrinkage.
      */
+    // 当桶上的节点数大于此临界值时会转换成红黑树
+    // i.e.一个entry上挂了个长度为8的链表
     static final int TREEIFY_THRESHOLD = 8;
 
     /**
@@ -264,6 +269,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * resize operation. Should be less than TREEIFY_THRESHOLD, and at
      * most 6 to mesh with shrinkage detection under removal.
      */
+    // 当桶上的节点数小于此临界值时会从红黑树转为链表结构
     static final int UNTREEIFY_THRESHOLD = 6;
 
     /**
@@ -272,6 +278,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * Should be at least 4 * TREEIFY_THRESHOLD to avoid conflicts
      * between resizing and treeification thresholds.
      */
+    // 桶中结构转为红黑树的最低节点数量
     static final int MIN_TREEIFY_CAPACITY = 64;
 
     /**
@@ -401,11 +408,13 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * Holds cached entrySet(). Note that AbstractMap fields are used
      * for keySet() and values().
      */
+    // 存放具体元素的集合
     transient Set<Map.Entry<K,V>> entrySet;
 
     /**
      * The number of key-value mappings contained in this map.
      */
+    // 存放的元素的个数，注意此值并不等于数组的长度
     transient int size;
 
     /**
@@ -415,6 +424,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * rehash).  This field is used to make iterators on Collection-views of
      * the HashMap fail-fast.  (See ConcurrentModificationException).
      */
+    // map修改次数的计数器，用于fail-fast机制
     transient int modCount;
 
     /**
@@ -426,6 +436,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     // Additionally, if the table array has not been allocated, this
     // field holds the initial array capacity, or zero signifying
     // DEFAULT_INITIAL_CAPACITY.)
+    // 临界值，当实际大小（capacity * loadFactor） > 临界值时会进行扩容
     int threshold;
 
     /**
@@ -433,6 +444,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      *
      * @serial
      */
+    // 负载因子
     final float loadFactor;
 
     /* ---------------- Public operations -------------- */
