@@ -222,6 +222,7 @@ public class HashSet<E>
      * element
      */
     public boolean add(E e) {
+        // 就是HashMap的put方法调用
         return map.put(e, PRESENT)==null;
     }
 
