@@ -118,7 +118,7 @@ public class TreeMap<K,V>
      *
      * @serial
      */
-    // 排序器
+    // 比较器
     private final Comparator<? super K> comparator;
 
     // 根节点
@@ -543,8 +543,11 @@ public class TreeMap<K,V>
      *         does not permit null keys
      */
     public V put(K key, V value) {
+        // 获取root节点
         Entry<K,V> t = root;
+        // 要是没有root节点的话就用当前put的k-v对来创建root
         if (t == null) {
+            // 校验key的类型
             compare(key, key); // type (and possibly null) check
 
             root = new Entry<>(key, value, null);
@@ -556,6 +559,8 @@ public class TreeMap<K,V>
         Entry<K,V> parent;
         // split comparator and comparable paths
         Comparator<? super K> cpr = comparator;
+        // 根据比较器来给put节点找一个比较合适的位置
+        // i.e.简单的BST查找算法
         if (cpr != null) {
             do {
                 parent = t;
@@ -568,7 +573,9 @@ public class TreeMap<K,V>
                     return t.setValue(value);
             } while (t != null);
         }
+        // 要是没定义比较器的话就用key本身的比较器进行比较
         else {
+            // key为null的话显然是没法比较的
             if (key == null)
                 throw new NullPointerException();
             @SuppressWarnings("unchecked")
@@ -584,11 +591,14 @@ public class TreeMap<K,V>
                     return t.setValue(value);
             } while (t != null);
         }
+        // 创建节点
         Entry<K,V> e = new Entry<>(key, value, parent);
         if (cmp < 0)
             parent.left = e;
         else
             parent.right = e;
+        // 维护红黑树
+        // 自己手写个红黑树下面这个方法就能理解了
         fixAfterInsertion(e);
         size++;
         modCount++;
