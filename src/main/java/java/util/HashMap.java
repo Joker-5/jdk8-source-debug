@@ -669,6 +669,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                    boolean evict) {
         Node<K,V>[] tab; Node<K,V> p; int n, i;
         // 如果table还没初始化那么就进行初始化
+        // 可以看到HashMap采用的是懒加载的机制，在构造器中并不会为其分配内存，
+        // 只有在第一次调用put方法时才会进行初始化
         if ((tab = table) == null || (n = tab.length) == 0)
             n = (tab = resize()).length;
         // 「i = (n - 1) & hash」即寻找元素在table中的下标
