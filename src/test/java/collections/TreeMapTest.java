@@ -12,5 +12,9 @@ public class TreeMapTest {
         map.get(1);
         // TreeMap要是get一个null会直接抛异常
 //        map.get(null);
+        // 4.containsKey方法解析
+        boolean b = map.containsKey(1);
+        // 5.remove方法解析
+        map.remove(1);
     }
 }

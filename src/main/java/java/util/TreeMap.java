@@ -234,6 +234,7 @@ public class TreeMap<K,V>
      *         does not permit null keys
      */
     public boolean containsKey(Object key) {
+        // 底层调的就是getEntry
         return getEntry(key) != null;
     }
 
@@ -625,11 +626,13 @@ public class TreeMap<K,V>
      *         does not permit null keys
      */
     public V remove(Object key) {
+        // 传统异能获取指定key的entry
         Entry<K,V> p = getEntry(key);
         if (p == null)
             return null;
 
         V oldValue = p.value;
+        // 底层调用逻辑
         deleteEntry(p);
         return oldValue;
     }
@@ -2171,15 +2174,20 @@ public class TreeMap<K,V>
     /**
      * Returns the successor of the specified Entry, or null if no such.
      */
+    // 返回p的后继节点
+    // i.e.大于p的最小节点
     static <K,V> TreeMap.Entry<K,V> successor(Entry<K,V> t) {
         if (t == null)
             return null;
+        // 如果p有右孩子那直接找以右孩子为root的最小的那个左孩子即可
         else if (t.right != null) {
             Entry<K,V> p = t.right;
             while (p.left != null)
                 p = p.left;
             return p;
         } else {
+            // 如果p没有右孩子，就找离p最近的且为左孩子的'父'节点
+            // 画个图根据BST的性质很容易理解
             Entry<K,V> p = t.parent;
             Entry<K,V> ch = t;
             while (p != null && ch == p.right) {
@@ -2330,6 +2338,7 @@ public class TreeMap<K,V>
 
         // If strictly internal, copy successor's element to p and then make p
         // point to successor.
+        // 1.如果待删除节点p两个孩子都有，那么只需将其后继节点挂到p原先在的位置
         if (p.left != null && p.right != null) {
             Entry<K,V> s = successor(p);
             p.key = s.key;
@@ -2338,8 +2347,10 @@ public class TreeMap<K,V>
         } // p has 2 children
 
         // Start fixup at replacement node, if it exists.
+        // 获取替换节点
         Entry<K,V> replacement = (p.left != null ? p.left : p.right);
 
+        // 如果有子节点的话
         if (replacement != null) {
             // Link replacement to parent
             replacement.parent = p.parent;
