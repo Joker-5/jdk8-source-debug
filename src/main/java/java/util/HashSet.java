@@ -93,9 +93,11 @@ public class HashSet<E>
 {
     static final long serialVersionUID = -5024744406713321676L;
 
+    // HashSet只有map一个属性
     private transient HashMap<E,Object> map;
 
     // Dummy value to associate with an Object in the backing Map
+    // 因为HashSet底册的Map只需要用到key，因此value就用一个统一的Object变量「PRESENT」即可
     private static final Object PRESENT = new Object();
 
     /**
@@ -103,6 +105,7 @@ public class HashSet<E>
      * default initial capacity (16) and load factor (0.75).
      */
     public HashSet() {
+        // 底层用的是默认的HashMap
         map = new HashMap<>();
     }
 
@@ -116,7 +119,9 @@ public class HashSet<E>
      * @throws NullPointerException if the specified collection is null
      */
     public HashSet(Collection<? extends E> c) {
+        // 最小容量应为16
         map = new HashMap<>(Math.max((int) (c.size()/.75f) + 1, 16));
+        // 批量添加元素
         addAll(c);
     }
 
