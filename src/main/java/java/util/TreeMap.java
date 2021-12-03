@@ -280,6 +280,7 @@ public class TreeMap<K,V>
      *         does not permit null keys
      */
     public V get(Object key) {
+        // 获取key对应的entry
         Entry<K,V> p = getEntry(key);
         return (p==null ? null : p.value);
     }
@@ -351,13 +352,16 @@ public class TreeMap<K,V>
      */
     final Entry<K,V> getEntry(Object key) {
         // Offload comparator-based version for sake of performance
+        // 如果自定义了比较器，就基于该比较器进行查找
         if (comparator != null)
             return getEntryUsingComparator(key);
+        // key为null直接抛异常
         if (key == null)
             throw new NullPointerException();
         @SuppressWarnings("unchecked")
             Comparable<? super K> k = (Comparable<? super K>) key;
         Entry<K,V> p = root;
+        // 遍历红黑树的正常BST查找
         while (p != null) {
             int cmp = k.compareTo(p.key);
             if (cmp < 0)
@@ -367,6 +371,7 @@ public class TreeMap<K,V>
             else
                 return p;
         }
+        // 查不到就返回null
         return null;
     }
 
