@@ -634,6 +634,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * key.
      */
     public boolean containsKey(Object key) {
+        // 可以看到底层调的是和get相同的方法
         return getNode(hash(key), key) != null;
     }
 

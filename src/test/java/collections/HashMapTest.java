@@ -17,6 +17,7 @@ public class HashMapTest {
         Integer v = map.get(1);
         // 6.remove方法分析
         map.remove(1);
-
+        // 7.containsKey方法解析
+        boolean b = map.containsKey(1);
     }
 }
