@@ -591,7 +591,9 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /*
      * Encodings for Node hash fields. See above for explanation.
      */
+    // 表示正在转移
     static final int MOVED     = -1; // hash for forwarding nodes
+    // 表示已经转换成树
     static final int TREEBIN   = -2; // hash for roots of trees
     static final int RESERVED  = -3; // hash for transient reservations
     static final int HASH_BITS = 0x7fffffff; // usable bits of normal node hash
@@ -751,15 +753,21 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      */
 
     @SuppressWarnings("unchecked")
+    // 下面三个方法都是通过直接操作内存的方式来保证并发的安全性的，使用的是硬件的安全机制，
+    // 他们都是原子方法
+
+    // 用于返回节点数组指定位置节点
     static final <K,V> Node<K,V> tabAt(Node<K,V>[] tab, int i) {
         return (Node<K,V>)U.getObjectVolatile(tab, ((long)i << ASHIFT) + ABASE);
     }
 
+    // cas，在指定位置设置值
     static final <K,V> boolean casTabAt(Node<K,V>[] tab, int i,
                                         Node<K,V> c, Node<K,V> v) {
         return U.compareAndSwapObject(tab, ((long)i << ASHIFT) + ABASE, c, v);
     }
 
+    // 在指定位置设置值
     static final <K,V> void setTabAt(Node<K,V>[] tab, int i, Node<K,V> v) {
         U.putObjectVolatile(tab, ((long)i << ASHIFT) + ABASE, v);
     }
@@ -770,6 +778,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * The array of bins. Lazily initialized upon first insertion.
      * Size is always a power of two. Accessed directly by iterators.
      */
+    // 用来存储元素的底层数组
     transient volatile Node<K,V>[] table;
 
     /**
@@ -792,6 +801,11 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * creation, or 0 for default. After initialization, holds the
      * next element count value upon which to resize the table.
      */
+    // 用来控制table的初始化和扩容，可以理解为HashMap的 capacity的扩展，默认值为0
+    // 如果初始化时指定了大小，则此值将会保存在sizeCtl中，此值为数组容量的0.75
+    // 当此值为负时表示正在初始化or扩容
+    // -1: 初始化
+    // -(1+n): 表示活动的扩容线程
     private transient volatile int sizeCtl;
 
     /**
@@ -839,6 +853,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         int cap = ((initialCapacity >= (MAXIMUM_CAPACITY >>> 1)) ?
                    MAXIMUM_CAPACITY :
                    tableSizeFor(initialCapacity + (initialCapacity >>> 1) + 1));
+        // 若指定了容量则需初始化sizeCtl
         this.sizeCtl = cap;
     }
 
@@ -847,6 +862,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *
      * @param m the map
      */
+    // 用一个map作为入参，sizeCtl用默认大小16
     public ConcurrentHashMap(Map<? extends K, ? extends V> m) {
         this.sizeCtl = DEFAULT_CAPACITY;
         putAll(m);
@@ -2160,6 +2176,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * A node inserted at head of bins during transfer operations.
      */
+    // 该节点用于在转移时放在头部，是一个空节点
     static final class ForwardingNode<K,V> extends Node<K,V> {
         final Node<K,V>[] nextTable;
         ForwardingNode(Node<K,V>[] tab) {
@@ -2715,6 +2732,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * forcing writers (who hold bin lock) to wait for readers (who do
      * not) to complete before tree restructuring operations.
      */
+    // 作为树的头节点，只存储root和first节点，不会存储节点的k、v值
     static final class TreeBin<K,V> extends Node<K,V> {
         TreeNode<K,V> root;
         volatile TreeNode<K,V> first;
