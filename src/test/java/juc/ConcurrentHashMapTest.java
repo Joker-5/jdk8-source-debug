@@ -13,5 +13,7 @@ public class ConcurrentHashMapTest {
         map.put(1, 1);
         // 3.putAll方法分析
         map.putAll(Arrays.stream((new int[]{1, 2, 3})).boxed().collect(Collectors.toMap(Object::hashCode, Object::hashCode)));
+        // 4.get方法分析
+        int i = map.get(1);
     }
 }
