@@ -569,6 +569,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * excessive memory contention.  The value should be at least
      * DEFAULT_CAPACITY.
      */
+    // transfer扩容时每个扩容线程处理的最小数组长度，用于控制对CPU的使用
     private static final int MIN_TRANSFER_STRIDE = 16;
 
     /**
@@ -1117,6 +1118,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * @param m mappings to be stored in this map
      */
     public void putAll(Map<? extends K, ? extends V> m) {
+        // 在putAll中先调用tryPresize方法对table进行初始化
         tryPresize(m.size());
         for (Map.Entry<? extends K, ? extends V> e : m.entrySet())
             putVal(e.getKey(), e.getValue(), false);
@@ -2198,7 +2200,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * A node inserted at head of bins during transfer operations.
      */
-    // 该节点用于在转移时放在头部，是一个空节点
+    // 该节点用于在transfer时放在头部，是一个空节点
     static final class ForwardingNode<K,V> extends Node<K,V> {
         final Node<K,V>[] nextTable;
         ForwardingNode(Node<K,V>[] tab) {
@@ -2259,6 +2261,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     /**
      * Initializes table, using the size recorded in sizeCtl.
      */
+    // 对table进行初始化
     private final Node<K,V>[] initTable() {
         Node<K,V>[] tab; int sc;
         // 细节用while而不是if
@@ -2364,14 +2367,21 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      *
      * @param size number of elements (doesn't need to be perfectly accurate)
      */
+    // 这个方法允许多个线程同时操作
     private final void tryPresize(int size) {
+        // 如果扩容后的大小大于最大容量的0.5，则直接使用最大容量
         int c = (size >= (MAXIMUM_CAPACITY >>> 1)) ? MAXIMUM_CAPACITY :
-            tableSizeFor(size + (size >>> 1) + 1);
+            tableSizeFor(size + (size >>> 1) + 1);  // 返回大于 c 的最小的二次幂
         int sc;
         while ((sc = sizeCtl) >= 0) {
             Node<K,V>[] tab = table; int n;
+            // 如果数组还没初始化，则初始化一个大小为max(sc, c)的table
+            // TODO: 关于为啥在initTable里初始化过一次，这里还需要再进行一次检测
+            // 看putAll源码可以发现其没有调用initTable方法，而是直接调用了tryPresize进行扩容，
+            // 因此需要在这里对是否初始化再检测一次
             if (tab == null || (n = tab.length) == 0) {
                 n = (sc > c) ? sc : c;
+                // 初始化时应该将sizeCtl置为-1
                 if (U.compareAndSwapInt(this, SIZECTL, sc, -1)) {
                     try {
                         if (table == tab) {
@@ -2385,21 +2395,29 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                     }
                 }
             }
+            // 扩容会持续到 c <= sc or 数组长度超过最大容量
+            // 从这里可以看出调用这个方法进行一次扩容并不是两倍扩容，而是2的n方倍扩容
             else if (c <= sc || n >= MAXIMUM_CAPACITY)
                 break;
             else if (tab == table) {
                 int rs = resizeStamp(n);
+                // 下面的if判断说明在当前t1线程尝试扩容时可能别的线程t2也在尝试扩容，
+                // 但是t2 CAS成功了，这时t1应该帮助t2进行扩容
                 if (sc < 0) {
                     Node<K,V>[] nt;
                     if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
                         sc == rs + MAX_RESIZERS || (nt = nextTable) == null ||
                         transferIndex <= 0)
                         break;
+                    // 设置进行transfer的线程数+1，当前线程将会帮助扩容
                     if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1))
                         transfer(tab, nt);
                 }
+                // 如果现在没有别的线程在扩容就自己来扩
                 else if (U.compareAndSwapInt(this, SIZECTL, sc,
                                              (rs << RESIZE_STAMP_SHIFT) + 2))
+                    // 虽然nextTab为空但是完全没有关系，因为在transfer方法中有一个判断逻辑:
+                    // 如果nextTab即目标数组为空的话则默认进行2倍扩容
                     transfer(tab, null);
             }
         }
@@ -2409,13 +2427,18 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * Moves and/or copies the nodes in each bin to new table. See
      * above for explanation.
      */
+    // 数组扩容的底层逻辑
     private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
         int n = tab.length, stride;
+        // 进行步长计算，表示一个线程处理的数组长度，用来控制不要占用太多的CPU
         if ((stride = (NCPU > 1) ? (n >>> 3) / NCPU : n) < MIN_TRANSFER_STRIDE)
+            // 每个线程最小要处理的长度为16，从这里也可以看出，
+            // 如果一个数组长度不是很长的话那么有一堆扩容线程也没什么用处
             stride = MIN_TRANSFER_STRIDE; // subdivide range
         if (nextTab == null) {            // initiating
             try {
                 @SuppressWarnings("unchecked")
+                // 如果第二个参数（目标数组）为空的话就默认扩容两倍
                 Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n << 1];
                 nextTab = nt;
             } catch (Throwable ex) {      // try to cope with OOME
@@ -2426,8 +2449,11 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             transferIndex = n;
         }
         int nextn = nextTab.length;
+        // 创建一个Forward节点，用于并发控制，当一个节点为空或已经被transfer后，就将其设置为fwd节点
         ForwardingNode<K,V> fwd = new ForwardingNode<K,V>(nextTab);
+        // 是否继续向前查找
         boolean advance = true;
+        // 在完成之前重新扫一遍数组，看看有没有没完成的
         boolean finishing = false; // to ensure sweep before committing nextTab
         for (int i = 0, bound = 0;;) {
             Node<K,V> f; int fh;
@@ -2450,9 +2476,11 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             }
             if (i < 0 || i >= n || i + n >= nextn) {
                 int sc;
+                // transfer完成
                 if (finishing) {
                     nextTable = null;
                     table = nextTab;
+                    // 设置sizeCtl为扩容后的0.75
                     sizeCtl = (n << 1) - (n >>> 1);
                     return;
                 }
@@ -2464,18 +2492,35 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                 }
             }
             else if ((f = tabAt(tab, i)) == null)
+                // 将null节点设置为fwd节点
                 advance = casTabAt(tab, i, null, fwd);
             else if ((fh = f.hash) == MOVED)
                 advance = true; // already processed
             else {
+                // 直接加锁
                 synchronized (f) {
                     if (tabAt(tab, i) == f) {
                         Node<K,V> ln, hn;
+                        // hash >= 0 说明是一个链表节点，进行链表移动
                         if (fh >= 0) {
+                            // 因为n是数组的长度且值永远是2的幂，因此「fh & n」必然要么为0要么为n
+                            // 这里和HashMap扩容后的元素移动判断策略差不多，如果相&值为0就不需要移动，只需放在相同的位置，
+                            // 否则放在 old + n的位置
                             int runBit = fh & n;
+                            // f表示需要复制的最后一个节点
                             Node<K,V> lastRun = f;
                             for (Node<K,V> p = f.next; p != null; p = p.next) {
+                                // n为扩容前数组的长度
                                 int b = p.hash & n;
+                                // 每当新节点的「hash & n」和runBit不同时，就需要将runBit置为此值，
+                                // 这样的话当for循环结束后，runBit的值就是最后不变的「hash & n」值
+                                // lastRun就是最后一次导致「hash & n」发生变化的节点(即p节点)
+                                // TODO 这样做有什么意义？
+                                // 看网上的说法是:
+                                // 因为p节点后面的节点的hash&n 值跟p节点是一样的，
+                                // 所以在复制到新的table的时候，它肯定还是跟p节点在同一个位置,
+                                // 在复制完p节点之后，p节点的next节点还是指向它原来的节点，就不需要进行复制了，自己就被带过去了,
+                                // 这也就导致了一个问题就是复制后的链表的顺序并不一定是原来的倒序
                                 if (b != runBit) {
                                     runBit = b;
                                     lastRun = p;
@@ -2489,11 +2534,22 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                                 hn = lastRun;
                                 ln = null;
                             }
+                            // 构造两个链表，顺序「大部分」和原来是反的，也就是说复制之后的新链表不是旧链表的绝对倒序！！！
+                            // 分别放到原来的位置和新增加的长度的相同位置(i or n+i)
                             for (Node<K,V> p = f; p != lastRun; p = p.next) {
                                 int ph = p.hash; K pk = p.key; V pv = p.val;
+                                // TODO 下面这两段话怎么理解？
                                 if ((ph & n) == 0)
+                                    // 假设runBit的值为0，
+                                    // 则第一次进入这个设置的时候相当于把旧的序列的最后一次发生hash变化的节点(该节点后面可能还有hash计算后同为0的节点)，
+                                    // 设置到旧的table的第一个hash计算后为0的节点下一个节点
+                                    // 并且把自己返回，然后在下次进来的时候把它自己设置为后面节点的下一个节点
                                     ln = new Node<K,V>(ph, pk, pv, ln);
                                 else
+                                    // 假设runBit的值不为0，
+                                    // 则第一次进入这个设置的时候相当于把旧的序列的最后一次发生hash变化的节点(该节点后面可能还有hash计算后同不为0的节点)，
+                                    // 设置到旧的table的第一个hash计算后不为0的节点下一个节点
+                                    // 并且把自己返回，然后在下次进来的时候把它自己设置为后面节点的下一个节点
                                     hn = new Node<K,V>(ph, pk, pv, hn);
                             }
                             setTabAt(nextTab, i, ln);
@@ -2501,6 +2557,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                             setTabAt(tab, i, fwd);
                             advance = true;
                         }
+                        // 红黑树节点
                         else if (f instanceof TreeBin) {
                             TreeBin<K,V> t = (TreeBin<K,V>)f;
                             TreeNode<K,V> lo = null, loTail = null;
@@ -2527,6 +2584,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                                     ++hc;
                                 }
                             }
+                            // 复制完后进行判断，该节点处构成的树还有几个节点，
+                            // 如果 <= 6个的话还需要再转为链表
                             ln = (lc <= UNTREEIFY_THRESHOLD) ? untreeify(lo) :
                                 (hc != 0) ? new TreeBin<K,V>(lo) : t;
                             hn = (hc <= UNTREEIFY_THRESHOLD) ? untreeify(hi) :
@@ -2656,22 +2715,29 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     private final void treeifyBin(Node<K,V>[] tab, int index) {
         Node<K,V> b; int n, sc;
         if (tab != null) {
+            // 和HashMap一样的策略，如果table长度小于64的话那么只做简单的两倍扩容
             if ((n = tab.length) < MIN_TREEIFY_CAPACITY)
+                // 可以看到是两倍扩容
                 tryPresize(n << 1);
+            // hash > 0 说明是链表节点
             else if ((b = tabAt(tab, index)) != null && b.hash >= 0) {
+                // 链表转树的时候直接加synchronized锁
                 synchronized (b) {
                     if (tabAt(tab, index) == b) {
                         TreeNode<K,V> hd = null, tl = null;
+                        // 遍历整条链表
                         for (Node<K,V> e = b; e != null; e = e.next) {
                             TreeNode<K,V> p =
                                 new TreeNode<K,V>(e.hash, e.key, e.val,
                                                   null, null);
+                            // 设置头节点
                             if ((p.prev = tl) == null)
                                 hd = p;
                             else
                                 tl.next = p;
                             tl = p;
                         }
+                        // 把转化完成的节点放到指定idx
                         setTabAt(tab, index, new TreeBin<K,V>(hd));
                     }
                 }
