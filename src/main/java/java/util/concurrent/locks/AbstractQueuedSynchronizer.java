@@ -377,22 +377,34 @@ public abstract class AbstractQueuedSynchronizer
      * expert group, for helpful ideas, discussions, and critiques
      * on the design of this class.
      */
+    // 构建CLH队列（就是等待队列）的节点类，该队列是一个虚拟的双向队列，
+    // i.e.不存在该队列的实例，仅存在节点间的关联关系
+    // AQS将每个请求分配资源的线程封装成在CLH队列的一个节点来实现锁的分配
+    // 一个一个的节点就相当于在候客区等待的顾客，每个节点都维护了自己的一个状态
     static final class Node {
         /** Marker to indicate a node is waiting in shared mode */
         static final Node SHARED = new Node();
         /** Marker to indicate a node is waiting in exclusive mode */
+        // 表示节点等待在独占模式的一个标记
         static final Node EXCLUSIVE = null;
 
         /** waitStatus value to indicate thread has cancelled */
+        // 表示当前节点已经取消调度，
+        // 当发生timeout or 线程被中断时会触发变更为此状态，进入该状态的节点将不再发生变化
         static final int CANCELLED =  1;
         /** waitStatus value to indicate successor's thread needs unparking */
+        // 表示后继节点在等待当前节点的唤醒，
+        // 当后继节点入队时，会将当前节点的状态置为「SIGNAL」
         static final int SIGNAL    = -1;
         /** waitStatus value to indicate thread is waiting on condition */
+        // 表示节点等待在condition上，
+        // 当其他线程调用了Condition的signal方法后，CONDITION状态的节点会从等待队列转移到同步队列中，等待获取同步锁
         static final int CONDITION = -2;
         /**
          * waitStatus value to indicate the next acquireShared should
          * unconditionally propagate
          */
+        // 在共享模式下，前驱节点不仅会唤醒其后继节点，还可能会唤醒后继的后继节点
         static final int PROPAGATE = -3;
 
         /**
@@ -429,6 +441,9 @@ public abstract class AbstractQueuedSynchronizer
          * CONDITION for condition nodes.  It is modified using CAS
          * (or when possible, unconditional volatile writes).
          */
+        // 重要属性，代表节点的等待状态，
+        // 负值表示节点处于有效等待状态，正值表示节点已经被取消，
+        // 因此可以看到源码中有很多地方用 > 0 < 0 来判断节点是否处在正常状态
         volatile int waitStatus;
 
         /**
@@ -519,17 +534,23 @@ public abstract class AbstractQueuedSynchronizer
      * If head exists, its waitStatus is guaranteed not to be
      * CANCELLED.
      */
+    // CLH队列的head，采用懒加载模式初始化
     private transient volatile Node head;
 
     /**
      * Tail of the wait queue, lazily initialized.  Modified only via
      * method enq to add new wait node.
      */
+    // CLH队列的tail，采用懒加载模式初始化，只能通过enq()方法来进行修改
     private transient volatile Node tail;
 
     /**
      * The synchronization state.
      */
+    // 表示AQS的同步状态，即AQS中锁的状态，
+    // 用volatile保证其在内存中的可见性
+    // 值为0就代表可以加锁， > 0代表有人，不可加锁
+    // AQS用CAS实现对此变量的原子修改
     private volatile int state;
 
     /**
@@ -561,6 +582,7 @@ public abstract class AbstractQueuedSynchronizer
      * @return {@code true} if successful. False return indicates that the actual
      *         value was not equal to the expected value.
      */
+    // 用unsafe类直接操作内存实现CAS，这是在硬件层面实现的操作
     protected final boolean compareAndSetState(int expect, int update) {
         // See below for intrinsics setup to support this
         return unsafe.compareAndSwapInt(this, stateOffset, expect, update);
@@ -585,6 +607,7 @@ public abstract class AbstractQueuedSynchronizer
             Node t = tail;
             if (t == null) { // Must initialize
                 if (compareAndSetHead(new Node()))
+                    // 开始的时候head就是一个dummy占位符
                     tail = head;
             } else {
                 node.prev = t;
@@ -602,10 +625,13 @@ public abstract class AbstractQueuedSynchronizer
      * @param mode Node.EXCLUSIVE for exclusive, Node.SHARED for shared
      * @return the new node
      */
+    // 将争抢资源失败的线程加入到CLH队列中
     private Node addWaiter(Node mode) {
         Node node = new Node(Thread.currentThread(), mode);
         // Try the fast path of enq; backup to full enq on failure
         Node pred = tail;
+        // 尝试用最快的方式将节点入队
+        // 如果CLH队列已经初始化了就直接将节点加到队尾，CAS入队
         if (pred != null) {
             node.prev = pred;
             if (compareAndSetTail(pred, node)) {
@@ -613,6 +639,7 @@ public abstract class AbstractQueuedSynchronizer
                 return node;
             }
         }
+        // 如果CLH队列没初始化则先将队列初始化在将节点入队
         enq(node);
         return node;
     }
@@ -793,13 +820,17 @@ public abstract class AbstractQueuedSynchronizer
      * @return {@code true} if thread should block
      */
     private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
+        // 获取前驱节点的等待状态
         int ws = pred.waitStatus;
+        // 前驱的状态是SIGNAL，那么可以放心挂起当前线程了
         if (ws == Node.SIGNAL)
             /*
              * This node has already set status asking a release
              * to signal it, so it can safely park.
              */
             return true;
+        // 前驱节点的状态是CANCELLED，已经没用了，那么直接将这个节点跳过，
+        // 并更改节点的前驱节点
         if (ws > 0) {
             /*
              * Predecessor was cancelled. Skip over predecessors and
@@ -833,6 +864,7 @@ public abstract class AbstractQueuedSynchronizer
      * @return {@code true} if interrupted
      */
     private final boolean parkAndCheckInterrupt() {
+        // 用LockSupport.park挂起当前线程
         LockSupport.park(this);
         return Thread.interrupted();
     }
@@ -859,8 +891,12 @@ public abstract class AbstractQueuedSynchronizer
         try {
             boolean interrupted = false;
             for (;;) {
+                // 获取当前节点的前驱节点
                 final Node p = node.predecessor();
+                // 如果其前驱节点是head，那么在给当前线程一次机会去抢占资源
+                // 短路求值
                 if (p == head && tryAcquire(arg)) {
+                    // 抢成功了就把字节设置为head
                     setHead(node);
                     p.next = null; // help GC
                     failed = false;
@@ -1194,7 +1230,10 @@ public abstract class AbstractQueuedSynchronizer
      *        {@link #tryAcquire} but is otherwise uninterpreted and
      *        can represent anything you like.
      */
+    // 争抢共享资源失败的线程将会进入此流程
     public final void acquire(int arg) {
+        // 首先会进入tryAcquire流程尝试再获取一遍资源，
+        // 如果还是失败就将当前线程包装为等待节点加入CLH队列尾部
         if (!tryAcquire(arg) &&
             acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
             selfInterrupt();
